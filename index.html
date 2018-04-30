@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Hello World!</title>
+</head>
+<body>
+<h1>Desktop application</h1>
+We are using node <script>document.write(process.versions.node)</script>,
+Chrome <script>document.write(process.versions.chrome)</script>,
+and Electron <script>document.write(process.versions.electron)</script>.
+<br/>
+<button disabled id="fakeServerLauncher">Launch a fake server</button>
+<input
+        id="serverToLaunch"
+        type="text"
+        value="./startFakeServer"
+        style="width: 532px;"/>
+
+<br/>
+<button id="fakeServerLauncher">Simulate Open an external Server</button>
+<button id="toWebviewSender">Send mainToWebview message</button>
+<input
+        id="msgToWebview"
+        type="text"
+        value="any thing"
+        style="width: 350px;"/>
+
+<br/>
+
+<div id="externalPageView"
+     width="400px"
+     height="400px"
+     style="display: block; border: 1px solid; width: 400px; height: 400px;">
+    <webview id="myweb" src="http://localhost:3003" preload="preload/inyestor.js"></webview>
+
+</div>
+<button id="openBrowserFromWebview">openBrowserInWebView</button>
+<input
+        id="browserSite"
+        type="text"
+        value="www.google.com"
+        style="width: 350px;"/>
+
+<br/>
+
+<script>
+  window.$ = window.jQuery = require('./libs/jquery.min.js');
+  const { spawn, exec } = require('child_process');
+
+  $(document).ready(function() {
+    const launcher = document.getElementById('fakeServerLauncher');
+    let launched;
+    const serverToLaunch = document.getElementById('serverToLaunch');
+    launcher.addEventListener('click', (event) => {
+      debugger;
+      launched = spawn(serverToLaunch.value);
+      launched.stdout.on('data', error => {
+        if (error){
+          console.log('${error}');
+        }
+      });
+      launched.stderr.on('data', data => {
+        if (data){
+          console.log('${data}');
+        }
+      });
+    });
+    const openBrowserLaunch = document.getElementById('openBrowserFromWebview');
+    openBrowserLaunch.addEventListener('click', (event) => {
+      webview.send("change-text-element",{
+        id: "myelementID",
+        text: document.getElementById("browserSite").value
+      });
+    });
+
+
+    const webview = document.getElementById("myweb");
+
+    webview.addEventListener("ipc-message", function(e) {
+      console.log(e.channel);
+    }.bind(this));
+
+    setTimeout(function(){
+      webview.send('ping');
+    }, 5000);
+
+
+    webview.addEventListener('console-message', (e) => {
+      console.log('Guest page logged a message:', e.message)
+    });
+    // When everything is ready, trigger the events without problems
+    webview.addEventListener("dom-ready", function() {
+      // Show devTools if you want
+      //webview.openDevTools();
+      console.log("DOM-Ready, triggering events !");
+
+      // Aler the scripts src of the website from the <webview>
+      webview.send("request");
+
+      // alert-something
+      webview.send("alert-something", "Hey, i'm alerting this.");
+
+      const toWebView = document.getElementById('toWebviewSender');
+      toWebView.addEventListener('click', (event) => {
+        //webview.send("alert-something", "My various text.");
+        webview.send("change-text-element",{
+          id: "myelementID",
+          text: document.getElementById("msgToWebview").value
+        });
+      });
+
+      // change-text-element manipulating the DOM
+    });
+
+    webview.addEventListener('did-finish-load', () => {
+      console.log("about to send ping");
+      webview.send('ping', 'whoooooooh!');
+      webview.send("change-text-element",{
+        id: "myelementID",
+        text: "My text"
+      });
+    });
+    // Process the data from the webview
+    webview.addEventListener('ipc-message',function(event) {
+      console.log(event);
+      console.info(event.channel);
+    });
+  });
+
+</script>
+</body>
+</html>
